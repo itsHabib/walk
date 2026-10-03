@@ -1,0 +1,40 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  go:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: gofmt
+        run: |
+          unformatted="$(gofmt -l .)"
+          if [ -n "$unformatted" ]; then
+            echo "::error title=gofmt::these files need gofmt: $unformatted"
+            exit 1
+          fi
+
+      - run: go vet ./...
+      - run: go test -race -cover ./...
+
+      # The shipped models are part of the contract: if one stops being clean,
+      # or its reachable-state count moves, that is a change worth noticing.
+      - name: walk the shipped models
+        run: |
+          go build -o /tmp/walk ./cmd/walk
+          for m in models/*.json; do
+            echo "== $m"
+            /tmp/walk check "$m"
+          done

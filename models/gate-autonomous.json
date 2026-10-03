@@ -1,0 +1,105 @@
+{
+  "pin": 18,
+  "name": "gate-autonomous",
+
+  "vars": {
+    "pr":       ["open", "merged"],
+    "head":     ["h1", "h2", "h3"],
+    "panel":    ["stale", "complete"],
+    "findings": ["clean", "actionable"],
+    "run":      ["none", "pass", "parked"],
+    "run_head": ["nohead", "h1", "h2", "h3"],
+    "cycles":   ["c0", "c1", "c2", "c3"]
+  },
+
+  "init": {
+    "pr": "open",
+    "head": "h1",
+    "panel": "stale",
+    "findings": "clean",
+    "run": "none",
+    "run_head": "nohead",
+    "cycles": "c0"
+  },
+
+  "actions": [
+    {
+      "name": "panel_finds_nothing",
+      "guard": ["and", ["==", "pr", "open"], ["==", "panel", "stale"]],
+      "effect": {"panel": "complete", "findings": "clean"}
+    },
+    {
+      "name": "panel_finds_something",
+      "guard": ["and", ["==", "pr", "open"], ["==", "panel", "stale"]],
+      "effect": {"panel": "complete", "findings": "actionable"}
+    },
+
+    {
+      "name": "gate_pass_c0",
+      "guard": ["and", ["==", "pr", "open"], ["==", "panel", "complete"], ["==", "findings", "clean"], ["==", "run", "none"], ["==", "cycles", "c0"]],
+      "effect": {"run": "pass", "run_head": "head", "cycles": "c1"}
+    },
+    {
+      "name": "gate_pass_c1",
+      "guard": ["and", ["==", "pr", "open"], ["==", "panel", "complete"], ["==", "findings", "clean"], ["==", "run", "none"], ["==", "cycles", "c1"]],
+      "effect": {"run": "pass", "run_head": "head", "cycles": "c2"}
+    },
+    {
+      "name": "gate_pass_c2",
+      "guard": ["and", ["==", "pr", "open"], ["==", "panel", "complete"], ["==", "findings", "clean"], ["==", "run", "none"], ["==", "cycles", "c2"]],
+      "effect": {"run": "pass", "run_head": "head", "cycles": "c3"}
+    },
+
+    {
+      "name": "gate_park_c0",
+      "guard": ["and", ["==", "pr", "open"], ["==", "panel", "complete"], ["==", "findings", "actionable"], ["==", "run", "none"], ["==", "cycles", "c0"]],
+      "effect": {"run": "parked", "run_head": "head", "cycles": "c1"}
+    },
+    {
+      "name": "gate_park_c1",
+      "guard": ["and", ["==", "pr", "open"], ["==", "panel", "complete"], ["==", "findings", "actionable"], ["==", "run", "none"], ["==", "cycles", "c1"]],
+      "effect": {"run": "parked", "run_head": "head", "cycles": "c2"}
+    },
+    {
+      "name": "gate_park_c2",
+      "guard": ["and", ["==", "pr", "open"], ["==", "panel", "complete"], ["==", "findings", "actionable"], ["==", "run", "none"], ["==", "cycles", "c2"]],
+      "effect": {"run": "parked", "run_head": "head", "cycles": "c3"}
+    },
+
+    {
+      "name": "merge",
+      "guard": ["and", ["==", "pr", "open"], ["==", "run", "pass"], ["==", "run_head", "head"]],
+      "effect": {"pr": "merged"}
+    },
+
+    {
+      "name": "fix_round_1",
+      "guard": ["and", ["==", "pr", "open"], ["==", "run", "parked"], ["==", "head", "h1"]],
+      "effect": {"head": "h2", "panel": "stale", "run": "none", "run_head": "nohead"}
+    },
+    {
+      "name": "fix_round_2",
+      "guard": ["and", ["==", "pr", "open"], ["==", "run", "parked"], ["==", "head", "h2"]],
+      "effect": {"head": "h3", "panel": "stale", "run": "none", "run_head": "nohead"}
+    }
+  ],
+
+  "invariants": [
+    {
+      "name": "merge_needs_a_passing_run",
+      "expr": ["or", ["!=", "pr", "merged"], ["==", "run", "pass"]]
+    },
+    {
+      "name": "merge_is_pinned_to_the_reviewed_head",
+      "expr": ["or", ["!=", "pr", "merged"], ["==", "run_head", "head"]]
+    },
+    {
+      "name": "a_run_names_the_head_it_judged",
+      "expr": ["or", ["==", "run", "none"], ["!=", "run_head", "nohead"]]
+    }
+  ],
+
+  "terminal": ["or",
+    ["==", "pr", "merged"],
+    ["and", ["==", "run", "parked"], ["==", "cycles", "c3"], ["==", "head", "h3"]]]
+}

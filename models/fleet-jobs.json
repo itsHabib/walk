@@ -1,0 +1,136 @@
+{
+  "name": "fleet-jobs",
+  "pin": 43,
+
+  "vars": {
+    "phase":  ["queued", "claimed", "reported", "accepted"],
+    "attempt": ["none", "a1", "a2"],
+    "minted":  ["none", "a1", "a2"],
+    "lease":   ["none", "live", "expired"],
+    "holder":  ["none", "w1", "w2"],
+    "w1tok":   ["none", "a1", "a2"],
+    "w2tok":   ["none", "a1", "a2"],
+    "done":    ["none", "a1", "a2"]
+  },
+
+  "init": {
+    "phase": "queued",
+    "attempt": "none",
+    "minted": "none",
+    "lease": "none",
+    "holder": "none",
+    "w1tok": "none",
+    "w2tok": "none",
+    "done": "none"
+  },
+
+  "actions": [
+    {
+      "name": "claim_a1_w1",
+      "guard": ["and",
+        ["or", ["==", "phase", "queued"], ["and", ["==", "phase", "claimed"], ["==", "lease", "expired"]]],
+        ["==", "minted", "none"]],
+      "effect": {"phase": "claimed", "attempt": "a1", "minted": "a1", "lease": "live", "holder": "w1", "w1tok": "a1"}
+    },
+    {
+      "name": "claim_a2_w1",
+      "guard": ["and",
+        ["or", ["==", "phase", "queued"], ["and", ["==", "phase", "claimed"], ["==", "lease", "expired"]]],
+        ["==", "minted", "a1"]],
+      "effect": {"phase": "claimed", "attempt": "a2", "minted": "a2", "lease": "live", "holder": "w1", "w1tok": "a2"}
+    },
+    {
+      "name": "claim_a1_w2",
+      "guard": ["and",
+        ["or", ["==", "phase", "queued"], ["and", ["==", "phase", "claimed"], ["==", "lease", "expired"]]],
+        ["==", "minted", "none"]],
+      "effect": {"phase": "claimed", "attempt": "a1", "minted": "a1", "lease": "live", "holder": "w2", "w2tok": "a1"}
+    },
+    {
+      "name": "claim_a2_w2",
+      "guard": ["and",
+        ["or", ["==", "phase", "queued"], ["and", ["==", "phase", "claimed"], ["==", "lease", "expired"]]],
+        ["==", "minted", "a1"]],
+      "effect": {"phase": "claimed", "attempt": "a2", "minted": "a2", "lease": "live", "holder": "w2", "w2tok": "a2"}
+    },
+
+    {
+      "name": "lease_expires",
+      "guard": ["==", "lease", "live"],
+      "effect": {"lease": "expired"}
+    },
+
+    {
+      "name": "renew_w1",
+      "guard": ["and", ["==", "phase", "claimed"], ["==", "lease", "live"], ["==", "holder", "w1"], ["==", "w1tok", "attempt"]],
+      "effect": {"lease": "live"}
+    },
+    {
+      "name": "renew_w2",
+      "guard": ["and", ["==", "phase", "claimed"], ["==", "lease", "live"], ["==", "holder", "w2"], ["==", "w2tok", "attempt"]],
+      "effect": {"lease": "live"}
+    },
+
+    {
+      "name": "complete_w1",
+      "guard": ["and", ["==", "phase", "claimed"], ["==", "lease", "live"], ["==", "holder", "w1"], ["==", "w1tok", "attempt"]],
+      "effect": {"phase": "reported", "done": "w1tok"}
+    },
+    {
+      "name": "complete_w2",
+      "guard": ["and", ["==", "phase", "claimed"], ["==", "lease", "live"], ["==", "holder", "w2"], ["==", "w2tok", "attempt"]],
+      "effect": {"phase": "reported", "done": "w2tok"}
+    },
+
+    {
+      "name": "accept",
+      "guard": ["==", "phase", "reported"],
+      "effect": {"phase": "accepted"}
+    },
+    {
+      "name": "retry_reported",
+      "guard": ["==", "phase", "reported"],
+      "effect": {"phase": "queued", "attempt": "none", "lease": "none", "holder": "none", "done": "none"}
+    },
+    {
+      "name": "retry_expired",
+      "guard": ["and", ["==", "phase", "claimed"], ["==", "lease", "expired"]],
+      "effect": {"phase": "queued", "attempt": "none", "lease": "none", "holder": "none"}
+    }
+  ],
+
+  "invariants": [
+    {
+      "name": "one_live_attempt",
+      "expr": ["or",
+        ["==", "attempt", "none"],
+        ["not", ["and", ["==", "w1tok", "attempt"], ["==", "w2tok", "attempt"]]]]
+    },
+    {
+      "name": "report_matches_attempt",
+      "expr": ["or",
+        ["not", ["in", "phase", "reported", "accepted"]],
+        ["==", "done", "attempt"]]
+    },
+    {
+      "name": "accepted_was_reported",
+      "expr": ["or", ["!=", "phase", "accepted"], ["!=", "done", "none"]]
+    },
+    {
+      "name": "claimed_has_holder",
+      "expr": ["or",
+        ["!=", "phase", "claimed"],
+        ["and", ["!=", "holder", "none"], ["!=", "attempt", "none"]]]
+    },
+    {
+      "name": "queued_is_unheld",
+      "expr": ["or",
+        ["!=", "phase", "queued"],
+        ["and", ["==", "holder", "none"], ["==", "lease", "none"], ["==", "attempt", "none"]]]
+    }
+  ],
+
+  "terminal": ["or",
+    ["==", "phase", "accepted"],
+    ["and", ["==", "phase", "queued"], ["==", "minted", "a2"]]]
+}
